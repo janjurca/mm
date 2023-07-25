@@ -1,0 +1,49 @@
+# Have the following environment vars set in shell before running docker-compose
+# (suggested values here but can use whatever desired):
+# export DB_NAME=mlflowdb
+# export MLFLOW_PORT=5001
+
+version: '3.3'
+
+services:
+  s3:
+    restart: always
+    image: minio/minio
+    container_name: mlflow_minio
+    volumes:
+      - minio_data:/data
+    ports:
+      - "${MINIO_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_ADDRESS=${MINIO_ADDRESS}
+      - MINIO_PORT=${MINIO_PORT}
+      - MINIO_STORAGE_USE_HTTPS=${MINIO_STORAGE_USE_HTTPS}
+      - MINIO_CONSOLE_ADDRESS=${MINIO_CONSOLE_ADDRESS}
+    command: server /data
+
+  web:
+    restart: always
+    image: ghcr.io/mlflow/mlflow
+    container_name: mlflow
+    depends_on:
+      - minio
+      - db
+    ports:
+      - "5000:5000"
+    environment:
+      - AWS_ACCESS_KEY_ID=${MINIO_ACCESS_KEY}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_SECRET_ACCESS_KEY}
+      - MLFLOW_S3_ENDPOINT_URL=http://s3:${MINIO_PORT}
+      - MLFLOW_S3_IGNORE_TLS=true
+    volumes:
+      - sqlitedb_data:/db:rw
+    command: >
+      sh -c "pip install boto3 && mlflow server --backend-store-uri sqlite:////db/mlflow.db --host 0.0.0.0 --serve-artifacts --artifacts-destination s3://${MLFLOW_BUCKET_NAME}"
+volumes:
+  minio_data:
+  sqlitedb_data:
+
+
