@@ -28,9 +28,6 @@ services:
     restart: always
     image: ghcr.io/mlflow/mlflow
     container_name: mlflow
-    depends_on:
-      - minio
-      - db
     ports:
       - "5000:5000"
     environment:
