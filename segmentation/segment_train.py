@@ -317,6 +317,23 @@ def inference(model, image_path, saveto=None):
         plt.show()
 
 
+def load_data(manifest):
+    data = []
+    with open(manifest) as f:
+        for line in f:
+            data.append(json.loads(line))
+    media_ids = [x["media_id"] for x in data]
+
+    train_media_ids, valid_media_ids = train_test_split(data, test_size=0.2)
+    valid_media_ids, test_media_ids = train_test_split(valid_media_ids, test_size=0.5)
+
+    train_data = [x for x in data if x["media_id"] in train_media_ids]
+    valid_data = [x for x in data if x["media_id"] in valid_media_ids]
+    test_data = [x for x in data if x["media_id"] in test_media_ids]
+
+    return train_data, valid_data, test_data
+
+
 if __name__ == '__main__':
     freeze_support()
 
@@ -345,14 +362,7 @@ if __name__ == '__main__':
         inference(model, args.inference, args.save_to, )
         exit()
 
-    data = []
-    with open(args.dataset + '/all_endoscopy.jsonl') as f:
-        for line in f:
-            data.append(json.loads(line))
-    random.shuffle(data)
-
-    train, valid = train_test_split(data, test_size=0.2)
-    valid, test = train_test_split(valid, test_size=0.5)
+    train, valid, test = load_data(os.path.join(args.dataset, "manifest.json"))
 
     train_dataloader = DataLoader(SegmentationDataset(args.dataset, train), batch_size=args.batch_size, shuffle=True, num_workers=args.n_cpu)
     valid_dataloader = DataLoader(SegmentationDataset(args.dataset, valid), batch_size=args.batch_size, shuffle=False, num_workers=args.n_cpu)
